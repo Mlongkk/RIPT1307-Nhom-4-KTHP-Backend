@@ -1,0 +1,140 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String   @id @default(uuid())
+  email      String   @unique
+  password   String
+  name       String
+  role       UserRole @default(USER)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+enum UserRole {
+  ADMIN
+  STAFF
+  USER
+}
+
+model Staff {
+  id          String      @id @default(uuid())
+  name        String
+  email       String      @unique
+  phone       String?
+  role        String
+  specialty   String?
+  appointments Appointment[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model PetOwner {
+  id        String  @id @default(uuid())
+  name      String
+  email     String  @unique
+  phone     String?
+  address   String?
+  pets      Pet[]
+  invoices  Invoice[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Pet {
+  id             String          @id @default(uuid())
+  name           String
+  species        String
+  breed          String?
+  sex            String?
+  birthDate      DateTime?
+  owner          PetOwner        @relation(fields: [ownerId], references: [id])
+  ownerId        String
+  appointments   Appointment[]
+  medicalRecords MedicalRecord[]
+  invoices       Invoice[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model Service {
+  id          String        @id @default(uuid())
+  name        String
+  description String?
+  price       Float
+  durationMin Int
+  appointments Appointment[]
+  invoiceItems InvoiceItem[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model Appointment {
+  id          String      @id @default(uuid())
+  pet         Pet         @relation(fields: [petId], references: [id])
+  petId       String
+  staff       Staff?      @relation(fields: [staffId], references: [id])
+  staffId     String?
+  service     Service     @relation(fields: [serviceId], references: [id])
+  serviceId   String
+  scheduledAt DateTime
+  status      AppointmentStatus @default(SCHEDULED)
+  notes       String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+model MedicalRecord {
+  id          String   @id @default(uuid())
+  pet         Pet      @relation(fields: [petId], references: [id])
+  petId       String
+  visitDate   DateTime
+  diagnosis   String?
+  treatment   String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Invoice {
+  id          String        @id @default(uuid())
+  pet         Pet           @relation(fields: [petId], references: [id])
+  petId       String
+  owner       PetOwner      @relation(fields: [ownerId], references: [id])
+  ownerId     String
+  totalAmount Float
+  issuedAt    DateTime      @default(now())
+  status      InvoiceStatus @default(PENDING)
+  items       InvoiceItem[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
+
+model InvoiceItem {
+  id         String   @id @default(uuid())
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id])
+  invoiceId  String
+  service    Service  @relation(fields: [serviceId], references: [id])
+  serviceId  String
+  quantity   Int      @default(1)
+  unitPrice  Float
+  totalPrice Float
+}
