@@ -8,43 +8,30 @@ datasource db {
 }
 
 model User {
-  id         String   @id @default(uuid())
-  email      String   @unique
-  password   String
-  name       String
-  role       UserRole @default(USER)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id                    String           @id @default(uuid())
+  username              String           @unique
+  email                 String           @unique
+  password              String
+  full_name             String
+  phone                 String?
+  role                  UserRole         @default(CUSTOMER)
+  // Quan hệ với Pets (nếu là CUSTOMER)
+  ownedPets             Pet[]            @relation("petOwner")
+  // Quan hệ với Appointments (nếu là CUSTOMER hoặc DOCTOR)
+  appointmentsAsCustomer Appointment[]   @relation("customerAppointments")
+  appointmentsAsDoctor   Appointment[]   @relation("doctorAppointments")
+  // Quan hệ với MedicalRecords (nếu là DOCTOR)
+  medicalRecords        MedicalRecord[]  @relation("doctorRecords")
+  // Quan hệ với Invoice (chủ sở hữu)
+  invoices              Invoice[]        @relation("invoiceOwner")
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
 }
 
 enum UserRole {
   ADMIN
-  STAFF
-  USER
-}
-
-model Staff {
-  id          String      @id @default(uuid())
-  name        String
-  email       String      @unique
-  phone       String?
-  role        String
-  specialty   String?
-  appointments Appointment[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-}
-
-model PetOwner {
-  id        String  @id @default(uuid())
-  name      String
-  email     String  @unique
-  phone     String?
-  address   String?
-  pets      Pet[]
-  invoices  Invoice[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  DOCTOR
+  CUSTOMER
 }
 
 model Pet {
@@ -52,9 +39,10 @@ model Pet {
   name           String
   species        String
   breed          String?
-  sex            String?
-  birthDate      DateTime?
-  owner          PetOwner        @relation(fields: [ownerId], references: [id])
+  gender         String?
+  birth_date     DateTime?
+  image_url      String?
+  owner          User            @relation("petOwner", fields: [ownerId], references: [id])
   ownerId        String
   appointments   Appointment[]
   medicalRecords MedicalRecord[]
@@ -63,31 +51,29 @@ model Pet {
   updatedAt      DateTime        @updatedAt
 }
 
-model Service {
-  id          String        @id @default(uuid())
-  name        String
-  description String?
-  price       Float
-  durationMin Int
-  appointments Appointment[]
-  invoiceItems InvoiceItem[]
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+model Appointment {
+  id               String              @id @default(uuid())
+  pet              Pet                 @relation(fields: [petId], references: [id])
+  petId            String
+  customer         User                @relation("customerAppointments", fields: [customerId], references: [id])
+  customerId       String
+  doctor           User?               @relation("doctorAppointments", fields: [doctorId], references: [id])
+  doctorId         String?
+  service          Service?            @relation(fields: [serviceId], references: [id])
+  serviceId        String?
+  appointment_date DateTime
+  priority_level   PriorityLevel       @default(NORMAL)
+  status           AppointmentStatus   @default(SCHEDULED)
+  reason           String?
+  notes            String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
 }
 
-model Appointment {
-  id          String      @id @default(uuid())
-  pet         Pet         @relation(fields: [petId], references: [id])
-  petId       String
-  staff       Staff?      @relation(fields: [staffId], references: [id])
-  staffId     String?
-  service     Service     @relation(fields: [serviceId], references: [id])
-  serviceId   String
-  scheduledAt DateTime
-  status      AppointmentStatus @default(SCHEDULED)
-  notes       String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+enum PriorityLevel {
+  EMERGENCY
+  URGENT
+  NORMAL
 }
 
 enum AppointmentStatus {
@@ -96,23 +82,37 @@ enum AppointmentStatus {
   CANCELLED
 }
 
+model Service {
+  id           String        @id @default(uuid())
+  name         String
+  description  String?
+  price        Float
+  durationMin  Int?
+  appointments Appointment[]
+  invoiceItems InvoiceItem[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
 model MedicalRecord {
-  id          String   @id @default(uuid())
-  pet         Pet      @relation(fields: [petId], references: [id])
-  petId       String
-  visitDate   DateTime
-  diagnosis   String?
-  treatment   String?
-  notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(uuid())
+  pet       Pet      @relation(fields: [petId], references: [id])
+  petId     String
+  doctor    User     @relation("doctorRecords", fields: [doctorId], references: [id])
+  doctorId  String
+  visit_date DateTime
+  diagnosis String?
+  treatment String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Invoice {
   id          String        @id @default(uuid())
   pet         Pet           @relation(fields: [petId], references: [id])
   petId       String
-  owner       PetOwner      @relation(fields: [ownerId], references: [id])
+  owner       User          @relation("invoiceOwner", fields: [ownerId], references: [id])
   ownerId     String
   totalAmount Float
   issuedAt    DateTime      @default(now())
@@ -137,4 +137,22 @@ model InvoiceItem {
   quantity   Int      @default(1)
   unitPrice  Float
   totalPrice Float
+}
+
+model ClinicInfo {
+  id           String   @id @default(uuid())
+  name         String
+  email        String?
+  phone        String?
+  address      String?
+  city         String?
+  district     String?
+  country      String?
+  website      String?
+  description  String?
+  logo_url     String?
+  opening_hour String?
+  closing_hour String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }

@@ -4,7 +4,15 @@ const morgan = require('morgan');
 const dotenv = require('dotenv');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./swaggerConfig');
-const clinicRoutes = require('./routes/clinicRoutes');
+
+// Routes
+const authRoutes = require('./routes/authRoutes');
+const petRoutes = require('./routes/petRoutes');
+const appointmentRoutes = require('./routes/appointmentRoutes');
+const medicalRecordRoutes = require('./routes/medicalRecordRoutes');
+const statisticsRoutes = require('./routes/statisticsRoutes');
+const userRoutes = require('./routes/userRoutes');
+const clinicInfoRoutes = require('./routes/clinicInfoRoutes');
 
 dotenv.config();
 
@@ -22,11 +30,22 @@ app.get('/', (req, res) => {
     res.json({ message: 'Pet Hospital Backend is running' });
 });
 
-app.use('/api', clinicRoutes);
+// API Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/pets', petRoutes);
+app.use('/api/appointments', appointmentRoutes);
+app.use('/api/medical-records', medicalRecordRoutes);
+app.use('/api/statistics', statisticsRoutes);
+app.use('/api/clinic', clinicInfoRoutes);
 
+// Error handling middleware
 app.use((err, req, res, next) => {
     console.error(err);
-    res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
+    res.status(err.status || 500).json({
+        success: false,
+        error: err.message || 'Internal server error'
+    });
 });
 
 app.listen(PORT, () => {
