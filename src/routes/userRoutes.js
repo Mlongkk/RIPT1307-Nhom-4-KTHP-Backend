@@ -243,6 +243,8 @@ router.get('/:id', authMiddleware, async (req, res, next) => {
  *           schema:
  *             type: object
  *             properties:
+ *               username:
+ *                 type: string
  *               full_name:
  *                 type: string
  *               phone:
@@ -259,10 +261,24 @@ router.put('/:id', authMiddleware, async (req, res, next) => {
             return res.status(403).json({ success: false, error: 'Access denied' });
         }
 
-        const { full_name, phone, role } = req.body;
+        const { username, full_name, phone, role } = req.body;
+
+        // Check if username already exists (if trying to change it)
+        if (username) {
+            const existingUser = await prisma.user.findFirst({
+                where: {
+                    username,
+                    id: { not: req.params.id }
+                }
+            });
+            if (existingUser) {
+                return res.status(400).json({ success: false, error: 'Username already exists' });
+            }
+        }
 
         // Only admin can change role
         let updateData = {};
+        if (username) updateData.username = username;
         if (full_name) updateData.full_name = full_name;
         if (phone) updateData.phone = phone;
         if (role && req.user.role === 'ADMIN') {
