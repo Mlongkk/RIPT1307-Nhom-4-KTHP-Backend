@@ -1,13 +1,7 @@
 const swaggerJsdoc = require('swagger-jsdoc');
 require('dotenv').config();
 
-// Xác định URL server dựa trên environment
-const getServerUrl = () => {
-    if (process.env.NODE_ENV === 'production') {
-        return process.env.API_URL || 'https://ript1307-nhom-4-kthp-backend.onrender.com';
-    }
-    return 'http://localhost:4000';
-};
+const API_URL = process.env.API_URL || 'http://localhost:4000';
 
 const options = {
     definition: {
@@ -19,8 +13,8 @@ const options = {
         },
         servers: [
             {
-                url: getServerUrl(),
-                description: process.env.NODE_ENV === 'production' ? 'Production server' : 'Development server'
+                url: API_URL,
+                description: 'API Server'
             }
         ],
         components: {

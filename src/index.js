@@ -20,10 +20,12 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 
 // ============ CORS Configuration ============
+const allowedOrigins = process.env.FRONTEND_URL
+    ? process.env.FRONTEND_URL.split(',')
+    : ['http://localhost:3000', 'http://localhost:4000', 'http://127.0.0.1:3000'];
+
 const corsOptions = {
-    origin: process.env.NODE_ENV === 'production'
-        ? ['https://ript1307-nhom-4-kthp-backend.onrender.com']
-        : ['http://localhost:3000', 'http://localhost:4000', 'http://127.0.0.1:3000'],
+    origin: allowedOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
