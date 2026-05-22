@@ -1,6 +1,8 @@
 const express = require('express');
+const { body, validationResult } = require('express-validator');
 const prisma = require('../prismaClient');
 const { authMiddleware, roleMiddleware } = require('../middleware/authMiddleware');
+const { hashPassword } = require('../utils/auth');
 
 const router = express.Router();
 
@@ -74,6 +76,102 @@ router.get('/', authMiddleware, roleMiddleware(['ADMIN']), async (req, res, next
                 total,
                 totalPages: Math.ceil(total / limit),
             },
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * @swagger
+ * /api/users:
+ *   post:
+ *     summary: Create new user (Admin only)
+ *     tags: [Users]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               username:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               full_name:
+ *                 type: string
+ *               phone:
+ *                 type: string
+ *               role:
+ *                 type: string
+ *                 enum: [ADMIN, DOCTOR, CUSTOMER]
+ *                 default: CUSTOMER
+ *     responses:
+ *       201:
+ *         description: User created successfully
+ *       400:
+ *         description: Validation error or user already exists
+ */
+router.post('/', authMiddleware, roleMiddleware(['ADMIN']), [
+    body('username').notEmpty().withMessage('Username required'),
+    body('email').isEmail().withMessage('Valid email required'),
+    body('password').isLength({ min: 6 }).withMessage('Password min 6 characters'),
+    body('full_name').notEmpty().withMessage('Full name required'),
+    body('role').optional().isIn(['ADMIN', 'DOCTOR', 'CUSTOMER']).withMessage('Invalid role'),
+], async (req, res, next) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ success: false, errors: errors.array() });
+        }
+
+        const { username, email, password, full_name, phone, role = 'CUSTOMER' } = req.body;
+
+        // Check if user already exists
+        const existingUser = await prisma.user.findFirst({
+            where: {
+                OR: [{ username }, { email }]
+            }
+        });
+
+        if (existingUser) {
+            return res.status(400).json({ success: false, error: 'User already exists' });
+        }
+
+        // Hash password
+        const hashedPassword = await hashPassword(password);
+
+        // Create user
+        const user = await prisma.user.create({
+            data: {
+                username,
+                email,
+                password: hashedPassword,
+                full_name,
+                phone: phone || null,
+                role,
+            },
+            select: {
+                id: true,
+                username: true,
+                email: true,
+                full_name: true,
+                phone: true,
+                role: true,
+                createdAt: true,
+                updatedAt: true,
+            },
+        });
+
+        res.status(201).json({
+            success: true,
+            message: 'User created successfully',
+            data: user,
         });
     } catch (error) {
         next(error);
