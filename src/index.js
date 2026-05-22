@@ -19,7 +19,17 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-app.use(cors());
+// ============ CORS Configuration ============
+const corsOptions = {
+    origin: process.env.NODE_ENV === 'production'
+        ? ['https://ript1307-nhom-4-kthp-backend.onrender.com']
+        : ['http://localhost:3000', 'http://localhost:4000', 'http://127.0.0.1:3000'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(morgan('dev'));
 
