@@ -33,6 +33,12 @@ const validatePet = (data) => {
     if (!data.ownerId || typeof data.ownerId !== 'string') {
         errors.push('ID chủ thú cưng không hợp lệ');
     }
+    if (data.weight !== undefined && data.weight !== null) {
+        const weight = parseFloat(data.weight);
+        if (isNaN(weight) || weight <= 0) {
+            errors.push('Cân nặng phải là số dương');
+        }
+    }
     return errors;
 };
 

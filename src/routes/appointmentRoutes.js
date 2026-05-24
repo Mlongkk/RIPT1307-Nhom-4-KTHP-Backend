@@ -49,7 +49,6 @@ router.get('/', async (req, res, next) => {
                 pet: true,
                 customer: true,
                 doctor: true,
-                service: true,
             },
             orderBy: { appointment_date: 'asc' },
         });
@@ -86,7 +85,6 @@ router.get('/:id', async (req, res, next) => {
                 pet: true,
                 customer: true,
                 doctor: true,
-                service: true,
             },
         });
 
@@ -119,27 +117,42 @@ router.get('/:id', async (req, res, next) => {
  *                 type: string
  *               appointment_date:
  *                 type: string
+ *               doctor_id:
+ *                 type: string
  *               priority_level:
  *                 type: string
  *                 enum: [EMERGENCY, URGENT, NORMAL]
  *               reason:
  *                 type: string
- *               service_id:
- *                 type: string
  */
 router.post('/', authMiddleware, async (req, res, next) => {
     try {
-        const { pet_id, appointment_date, priority_level = 'NORMAL', reason, service_id } = req.body;
+        const { pet_id, appointment_date, doctor_id, priority_level = 'NORMAL', reason } = req.body;
 
-        // Validate
-        if (!pet_id || !appointment_date) {
-            return res.status(400).json({ success: false, error: 'Missing required fields' });
+        // Validate required fields
+        if (!pet_id) {
+            return res.status(400).json({ success: false, error: 'Missing required field: pet_id (must be UUID of pet, not pet name)' });
+        }
+        if (!appointment_date) {
+            return res.status(400).json({ success: false, error: 'Missing required field: appointment_date' });
+        }
+
+        // Validate appointment_date format
+        const appointmentDate = new Date(appointment_date);
+        if (isNaN(appointmentDate.getTime())) {
+            return res.status(400).json({ success: false, error: 'Invalid appointment_date format. Must be ISO 8601 (e.g., 2026-05-24T14:30:00)' });
+        }
+
+        // Validate priority_level enum
+        const validPriorities = ['EMERGENCY', 'URGENT', 'NORMAL'];
+        if (priority_level && !validPriorities.includes(priority_level)) {
+            return res.status(400).json({ success: false, error: `Invalid priority_level. Must be one of: ${validPriorities.join(', ')}` });
         }
 
         // Check pet exists
         const pet = await prisma.pet.findUnique({ where: { id: pet_id } });
         if (!pet) {
-            return res.status(404).json({ success: false, error: 'Pet not found' });
+            return res.status(404).json({ success: false, error: `Pet with ID "${pet_id}" not found. Note: pet_id must be the UUID of the pet, not the pet name` });
         }
 
         // Only pet owner or admin can book appointment for the pet
@@ -147,32 +160,23 @@ router.post('/', authMiddleware, async (req, res, next) => {
             return res.status(403).json({ success: false, error: 'You can only book appointments for your own pets' });
         }
 
-        // Auto-assign doctor based on priority & availability
-        let doctorId = null;
-        if (priority_level === 'EMERGENCY') {
-            // Assign available doctor
-            const availableDoctor = await prisma.user.findFirst({
-                where: {
-                    role: 'DOCTOR',
-                    appointmentsAsDoctor: {
-                        none: {
-                            appointment_date: {
-                                equals: new Date(appointment_date),
-                            },
-                        },
-                    },
-                },
-            });
-            doctorId = availableDoctor?.id || null;
+        // Validate doctor_id if provided
+        if (doctor_id) {
+            const doctor = await prisma.user.findUnique({ where: { id: doctor_id } });
+            if (!doctor) {
+                return res.status(404).json({ success: false, error: `Doctor with ID "${doctor_id}" not found. Note: doctor_id must be the UUID of the doctor, not the username` });
+            }
+            if (doctor.role !== 'DOCTOR') {
+                return res.status(400).json({ success: false, error: `User with ID "${doctor_id}" is not a doctor` });
+            }
         }
 
         const appointment = await prisma.appointment.create({
             data: {
                 petId: pet_id,
                 customerId: req.user.id,
-                doctorId,
-                serviceId: service_id || null,
-                appointment_date: new Date(appointment_date),
+                doctorId: doctor_id || null,
+                appointment_date: appointmentDate,
                 priority_level,
                 reason: reason || null,
                 status: 'SCHEDULED',
@@ -180,8 +184,7 @@ router.post('/', authMiddleware, async (req, res, next) => {
             include: {
                 pet: true,
                 customer: true,
-                doctor: true,
-                service: true,
+                doctor: true
             },
         });
 
@@ -233,6 +236,44 @@ router.put('/:id', authMiddleware, async (req, res, next) => {
             return res.status(404).json({ success: false, error: 'Appointment not found' });
         }
 
+        // Validate status enum if provided
+        const validStatuses = ['SCHEDULED', 'COMPLETED', 'CANCELLED'];
+        if (status && !validStatuses.includes(status)) {
+            return res.status(400).json({ success: false, error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
+        }
+
+        // Validate priority_level enum if provided
+        const validPriorities = ['EMERGENCY', 'URGENT', 'NORMAL'];
+        if (priority_level && !validPriorities.includes(priority_level)) {
+            return res.status(400).json({ success: false, error: `Invalid priority_level. Must be one of: ${validPriorities.join(', ')}` });
+        }
+
+        // Validate appointment_date format if provided
+        let newAppointmentDate = appointment.appointment_date;
+        if (appointment_date) {
+            newAppointmentDate = new Date(appointment_date);
+            if (isNaN(newAppointmentDate.getTime())) {
+                return res.status(400).json({ success: false, error: 'Invalid appointment_date format. Must be ISO 8601 (e.g., 2026-05-24T14:30:00)' });
+            }
+        }
+
+        // Validate doctor_id if provided
+        let newDoctorId = appointment.doctorId;
+        if (doctor_id !== undefined) {
+            if (doctor_id === null) {
+                newDoctorId = null;
+            } else {
+                const doctor = await prisma.user.findUnique({ where: { id: doctor_id } });
+                if (!doctor) {
+                    return res.status(404).json({ success: false, error: `Doctor with ID "${doctor_id}" not found` });
+                }
+                if (doctor.role !== 'DOCTOR') {
+                    return res.status(400).json({ success: false, error: `User with ID "${doctor_id}" is not a doctor` });
+                }
+                newDoctorId = doctor_id;
+            }
+        }
+
         // Only customer, doctor, or admin can update
         const isCustomer = req.user.id === appointment.customerId;
         const isDoctor = req.user.id === appointment.doctorId;
@@ -246,8 +287,8 @@ router.put('/:id', authMiddleware, async (req, res, next) => {
             where: { id: req.params.id },
             data: {
                 status: status || appointment.status,
-                doctorId: doctor_id !== undefined ? doctor_id : appointment.doctorId,
-                appointment_date: appointment_date ? new Date(appointment_date) : appointment.appointment_date,
+                doctorId: newDoctorId,
+                appointment_date: newAppointmentDate,
                 priority_level: priority_level || appointment.priority_level,
                 reason: reason !== undefined ? reason : appointment.reason,
             },
@@ -255,7 +296,6 @@ router.put('/:id', authMiddleware, async (req, res, next) => {
                 pet: true,
                 customer: true,
                 doctor: true,
-                service: true,
             },
         });
 

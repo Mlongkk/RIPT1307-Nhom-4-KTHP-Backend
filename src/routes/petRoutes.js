@@ -33,7 +33,11 @@ const router = express.Router();
  */
 router.get('/', async (req, res, next) => {
     try {
-        const { search, species, owner_id, page = 1, limit = 10 } = req.query;
+        const { search, species, gender, owner_id, page = 1, limit = 10 } = req.query;
+
+        // Convert to numbers
+        const pageNum = parseInt(page);
+        const limitNum = parseInt(limit);
 
         const where = {};
         if (search) {
@@ -45,30 +49,60 @@ router.get('/', async (req, res, next) => {
         if (owner_id) {
             where.ownerId = owner_id;
         }
+        if (gender) {
+            where.gender = gender; 
+        }
 
-        const skip = (page - 1) * limit;
+        // Debug log
+        console.log('📋 GET /pets - Query:', { page: pageNum, limit: limitNum, search, species, owner_id });
+        console.log('📋 WHERE filter:', where);
+
+        const skip = (pageNum - 1) * limitNum;
+
+        // Get total count BEFORE pagination
+        const total = await prisma.pet.count({ where });
+        console.log('📋 Total pets matching filter:', total);
 
         const pets = await prisma.pet.findMany({
             where,
             skip,
-            take: parseInt(limit),
-            include: {
-                owner: true,
+            take: limitNum,
+            select: {
+                id: true,
+                name: true,
+                species: true,
+                breed: true,
+                gender: true,
+                birth_date: true,
+                weight: true,
+                image_url: true,
+                ownerId: true,
+                owner: {
+                    select: {
+                        id: true,
+                        username: true,
+                        full_name: true,
+                        email: true,
+                        phone: true,
+                    },
+                },
                 appointments: true,
                 medicalRecords: true,
+                createdAt: true,
+                updatedAt: true,
             },
         });
 
-        const total = await prisma.pet.count({ where });
+        console.log(`✅ Returned ${pets.length} pets, Total: ${total}, Page: ${pageNum}/${Math.ceil(total / limitNum)}`);
 
         res.json({
             success: true,
             data: pets,
             pagination: {
-                page: parseInt(page),
-                limit: parseInt(limit),
+                page: pageNum,
+                limit: limitNum,
                 total,
-                totalPages: Math.ceil(total / limit),
+                totalPages: Math.ceil(total / limitNum),
             },
         });
     } catch (error) {
@@ -91,10 +125,29 @@ router.get('/:id', async (req, res, next) => {
     try {
         const pet = await prisma.pet.findUnique({
             where: { id: req.params.id },
-            include: {
-                owner: true,
+            select: {
+                id: true,
+                name: true,
+                species: true,
+                breed: true,
+                gender: true,
+                birth_date: true,
+                weight: true,
+                image_url: true,
+                ownerId: true,
+                owner: {
+                    select: {
+                        id: true,
+                        username: true,
+                        full_name: true,
+                        email: true,
+                        phone: true,
+                    },
+                },
                 appointments: true,
                 medicalRecords: true,
+                createdAt: true,
+                updatedAt: true,
             },
         });
 
@@ -112,7 +165,7 @@ router.get('/:id', async (req, res, next) => {
  * @swagger
  * /api/pets:
  *   post:
- *     summary: Create new pet with image upload
+ *     summary: Create new pet 
  *     tags: [Pets]
  *     security:
  *       - BearerAuth: []
@@ -133,17 +186,18 @@ router.get('/:id', async (req, res, next) => {
  *                 type: string
  *               birth_date:
  *                 type: string
+ *               weight:
+ *                 type: number
+ *                 format: float
  *               owner_id:
  *                 type: string
- *               image:
- *                 type: string
- *                 format: binary
+
  */
 router.post('/', authMiddleware, upload.single('image'), handleUploadErrors, async (req, res, next) => {
     try {
-        const { name, species, breed, gender, birth_date, owner_id } = req.body;
+        const { name, species, breed, gender, birth_date, weight, owner_id } = req.body;
 
-        // Only customer can create pets for themselves, or admin can create for anyone
+        // Only customer can create pets for themselves
         if (req.user.role === 'CUSTOMER' && req.user.id !== owner_id) {
             return res.status(403).json({ success: false, error: 'Customers can only create pets for themselves' });
         }
@@ -159,14 +213,14 @@ router.post('/', authMiddleware, upload.single('image'), handleUploadErrors, asy
             return res.status(400).json({ success: false, errors: validationErrors });
         }
 
-        let imageUrl = null;
-        if (req.file) {
-            try {
-                imageUrl = await uploadImage(req.file.buffer, `pet-${uuidv4()}`);
-            } catch (error) {
-                return res.status(400).json({ success: false, error: error.message });
-            }
-        }
+        // let imageUrl = null;
+        // if (req.file) {
+        //     try {
+        //         imageUrl = await uploadImage(req.file.buffer, `pet-${uuidv4()}`);
+        //     } catch (error) {
+        //         return res.status(400).json({ success: false, error: error.message });
+        //     }
+        // }
 
         const pet = await prisma.pet.create({
             data: {
@@ -175,10 +229,32 @@ router.post('/', authMiddleware, upload.single('image'), handleUploadErrors, asy
                 breed: breed || null,
                 gender: gender || null,
                 birth_date: birth_date ? new Date(birth_date) : null,
-                image_url: imageUrl,
+                weight: weight ? parseFloat(weight) : null,
+                // image_url: imageUrl,
                 ownerId: owner_id,
             },
-            include: { owner: true },
+            select: {
+                id: true,
+                name: true,
+                species: true,
+                breed: true,
+                gender: true,
+                birth_date: true,
+                weight: true,
+                // image_url: true,
+                ownerId: true,
+                owner: {
+                    select: {
+                        id: true,
+                        username: true,
+                        full_name: true,
+                        email: true,
+                        phone: true,
+                    },
+                },
+                createdAt: true,
+                updatedAt: true,
+            },
         });
 
         res.status(201).json({
@@ -202,7 +278,7 @@ router.post('/', authMiddleware, upload.single('image'), handleUploadErrors, asy
  */
 router.put('/:id', authMiddleware, upload.single('image'), handleUploadErrors, async (req, res, next) => {
     try {
-        const { name, species, breed, gender, birth_date } = req.body;
+        const { name, species, breed, gender, birth_date, weight } = req.body;
 
         const pet = await prisma.pet.findUnique({ where: { id: req.params.id } });
         if (!pet) {
@@ -243,15 +319,97 @@ router.put('/:id', authMiddleware, upload.single('image'), handleUploadErrors, a
                 breed: breed !== undefined ? breed : pet.breed,
                 gender: gender !== undefined ? gender : pet.gender,
                 birth_date: birth_date ? new Date(birth_date) : pet.birth_date,
+                weight: weight !== undefined ? (weight ? parseFloat(weight) : null) : pet.weight,
                 image_url: imageUrl,
             },
-            include: { owner: true },
+            select: {
+                id: true,
+                name: true,
+                species: true,
+                breed: true,
+                gender: true,
+                birth_date: true,
+                weight: true,
+                image_url: true,
+                ownerId: true,
+                owner: {
+                    select: {
+                        id: true,
+                        username: true,
+                        full_name: true,
+                        email: true,
+                        phone: true,
+                    },
+                },
+                createdAt: true,
+                updatedAt: true,
+            },
         });
 
         res.json({
             success: true,
             message: 'Pet updated successfully',
             data: updatedPet,
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * @swagger
+ * /api/pets/{id}/check-dependencies:
+ *   get:
+ *     summary: Check pet dependencies before deletion
+ *     tags: [Pets]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Dependencies check result
+ */
+router.get('/:id/check-dependencies', authMiddleware, async (req, res, next) => {
+    try {
+        const pet = await prisma.pet.findUnique({
+            where: { id: req.params.id },
+            include: {
+                appointments: true,
+                medicalRecords: true,
+                invoices: {
+                    include: { items: true },
+                },
+            },
+        });
+
+        if (!pet) {
+            return res.status(404).json({ success: false, error: 'Pet not found' });
+        }
+
+        const dependencies = {
+            appointments: pet.appointments.length,
+            medicalRecords: pet.medicalRecords.length,
+            invoices: pet.invoices.length,
+            invoiceItems: pet.invoices.reduce((sum, inv) => sum + inv.items.length, 0),
+            hasRelations: pet.appointments.length > 0 || pet.medicalRecords.length > 0 || pet.invoices.length > 0,
+            details: {
+                appointmentIds: pet.appointments.map(a => a.id),
+                medicalRecordIds: pet.medicalRecords.map(m => m.id),
+                invoiceIds: pet.invoices.map(i => i.id),
+            },
+        };
+
+        res.json({
+            success: true,
+            data: dependencies,
+            warning: dependencies.hasRelations
+                ? `⚠️ Pet này có liên kết với ${dependencies.appointments} appointments, ${dependencies.medicalRecords} medical records, ${dependencies.invoices} invoices. Xóa pet sẽ xóa tất cả dữ liệu này!`
+                : null,
         });
     } catch (error) {
         next(error);
@@ -269,7 +427,17 @@ router.put('/:id', authMiddleware, upload.single('image'), handleUploadErrors, a
  */
 router.delete('/:id', authMiddleware, async (req, res, next) => {
     try {
-        const pet = await prisma.pet.findUnique({ where: { id: req.params.id } });
+        const pet = await prisma.pet.findUnique({
+            where: { id: req.params.id },
+            include: {
+                appointments: true,
+                medicalRecords: true,
+                invoices: {
+                    include: { items: true },
+                },
+            },
+        });
+
         if (!pet) {
             return res.status(404).json({ success: false, error: 'Pet not found' });
         }
@@ -279,11 +447,22 @@ router.delete('/:id', authMiddleware, async (req, res, next) => {
             return res.status(403).json({ success: false, error: 'Access denied' });
         }
 
+        // Collect information about related records that will be deleted
+        const deletedData = {
+            pet: pet.name,
+            appointments: pet.appointments.length,
+            medicalRecords: pet.medicalRecords.length,
+            invoices: pet.invoices.length,
+            totalInvoiceItems: pet.invoices.reduce((sum, inv) => sum + inv.items.length, 0),
+        };
+
+        // Delete pet (cascade delete will handle related records)
         await prisma.pet.delete({ where: { id: req.params.id } });
 
         res.json({
             success: true,
-            message: 'Pet deleted successfully',
+            message: `Pet "${pet.name}" deleted successfully with cascade deletions`,
+            deletedRecords: deletedData,
         });
     } catch (error) {
         next(error);

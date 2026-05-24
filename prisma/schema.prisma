@@ -41,6 +41,7 @@ model Pet {
   breed          String?
   gender         String?
   birth_date     DateTime?
+  weight         Float?
   image_url      String?
   owner          User            @relation("petOwner", fields: [ownerId], references: [id])
   ownerId        String
@@ -53,7 +54,7 @@ model Pet {
 
 model Appointment {
   id               String              @id @default(uuid())
-  pet              Pet                 @relation(fields: [petId], references: [id])
+  pet              Pet                 @relation(fields: [petId], references: [id], onDelete: Cascade)
   petId            String
   customer         User                @relation("customerAppointments", fields: [customerId], references: [id])
   customerId       String
@@ -96,7 +97,7 @@ model Service {
 
 model MedicalRecord {
   id        String   @id @default(uuid())
-  pet       Pet      @relation(fields: [petId], references: [id])
+  pet       Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
   petId     String
   doctor    User     @relation("doctorRecords", fields: [doctorId], references: [id])
   doctorId  String
@@ -110,7 +111,7 @@ model MedicalRecord {
 
 model Invoice {
   id          String        @id @default(uuid())
-  pet         Pet           @relation(fields: [petId], references: [id])
+  pet         Pet           @relation(fields: [petId], references: [id], onDelete: Cascade)
   petId       String
   owner       User          @relation("invoiceOwner", fields: [ownerId], references: [id])
   ownerId     String
@@ -130,7 +131,7 @@ enum InvoiceStatus {
 
 model InvoiceItem {
   id         String   @id @default(uuid())
-  invoice    Invoice  @relation(fields: [invoiceId], references: [id])
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   invoiceId  String
   service    Service  @relation(fields: [serviceId], references: [id])
   serviceId  String
