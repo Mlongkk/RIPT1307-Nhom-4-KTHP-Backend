@@ -6,16 +6,18 @@
     "scripts": {
         "start": "node src/index.js",
         "dev": "nodemon src/index.js",
-        "prisma:generate": "prisma generate",
-        "prisma:migrate": "prisma migrate dev --name init",
-        "prisma:studio": "prisma studio",
-        "db:push": "prisma db push",
+        "postinstall": "prisma generate --config prisma/prisma.config.js",
+        "prisma:generate": "prisma generate --config prisma/prisma.config.js",
+        "prisma:migrate": "prisma migrate dev --name init --config prisma/prisma.config.js",
+        "prisma:studio": "prisma studio --config prisma/prisma.config.js",
+        "db:push": "prisma db push --config prisma/prisma.config.js",
         "db:seed": "node prisma/seed.js",
         "lint": "eslint src",
         "test": "jest"
     },
     "dependencies": {
-        "@prisma/client": "^5.10.0",
+        "@prisma/client": "^7.8.0",
+        "prisma": "^7.8.0",
         "bcryptjs": "^2.4.3",
         "cloudinary": "^1.40.0",
         "cors": "^2.8.5",
@@ -32,7 +34,6 @@
         "uuid": "^9.0.1"
     },
     "devDependencies": {
-        "nodemon": "^3.0.1",
-        "prisma": "^7.8.0"
+        "nodemon": "^3.0.1"
     }
 }
