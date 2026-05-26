@@ -175,10 +175,8 @@ router.put('/:id', authMiddleware, roleMiddleware(['DOCTOR', 'ADMIN']), async (r
             return res.status(404).json({ success: false, error: 'Medical record not found' });
         }
 
-        // Doctor can only update their own records, admin can update any
-        if (req.user.role === 'DOCTOR' && req.user.id !== record.doctorId) {
-            return res.status(403).json({ success: false, error: 'You can only update your own records' });
-        }
+        // Doctors have full permissions to update any medical record
+        // Admin can also update any record
 
         const updated = await prisma.medicalRecord.update({
             where: { id: req.params.id },
@@ -222,10 +220,8 @@ router.delete('/:id', authMiddleware, roleMiddleware(['DOCTOR', 'ADMIN']), async
             return res.status(404).json({ success: false, error: 'Medical record not found' });
         }
 
-        // Doctor can only delete their own records, admin can delete any
-        if (req.user.role === 'DOCTOR' && req.user.id !== record.doctorId) {
-            return res.status(403).json({ success: false, error: 'You can only delete your own records' });
-        }
+        // Doctors have full permissions to delete any medical record
+        // Admin can also delete any record
 
         await prisma.medicalRecord.delete({ where: { id: req.params.id } });
 

@@ -50,7 +50,7 @@ router.get('/', async (req, res, next) => {
             where.ownerId = owner_id;
         }
         if (gender) {
-            where.gender = gender; 
+            where.gender = gender;
         }
 
         // Debug log
@@ -105,6 +105,210 @@ router.get('/', async (req, res, next) => {
                 totalPages: Math.ceil(total / limitNum),
             },
         });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * @swagger
+ * /api/pets/my-pets:
+ *   get:
+ *     summary: Get all pets of current logged-in user with search & filter
+ *     tags: [Pets]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: species
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: gender
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: List of pets owned by current user
+ *       401:
+ *         description: Unauthorized
+ */
+router.get('/my-pets', authMiddleware, async (req, res, next) => {
+    try {
+        const { search, species, gender, page = 1, limit = 10 } = req.query;
+
+        // Convert to numbers
+        const pageNum = parseInt(page);
+        const limitNum = parseInt(limit);
+
+        const where = { ownerId: req.user.id };
+        if (search) {
+            where.name = { contains: search, mode: 'insensitive' };
+        }
+        if (species) {
+            where.species = { contains: species, mode: 'insensitive' };
+        }
+        if (gender) {
+            where.gender = gender;
+        }
+
+        // Debug log
+        console.log(`📋 GET /pets/my-pets - User: ${req.user.id}, Query:`, { page: pageNum, limit: limitNum, search, species, gender });
+        console.log('📋 WHERE filter:', where);
+
+        const skip = (pageNum - 1) * limitNum;
+
+        // Get total count of user's pets matching filter
+        const total = await prisma.pet.count({ where });
+        console.log(`📋 Total pets of user ${req.user.id} matching filter: ${total}`);
+
+        const pets = await prisma.pet.findMany({
+            where,
+            skip,
+            take: limitNum,
+            select: {
+                id: true,
+                name: true,
+                species: true,
+                breed: true,
+                gender: true,
+                birth_date: true,
+                weight: true,
+                image_url: true,
+                ownerId: true,
+                owner: {
+                    select: {
+                        id: true,
+                        username: true,
+                        full_name: true,
+                        email: true,
+                        phone: true,
+                    },
+                },
+                appointments: true,
+                medicalRecords: true,
+                createdAt: true,
+                updatedAt: true,
+            },
+        });
+
+        console.log(`✅ Returned ${pets.length} pets, Total: ${total}, Page: ${pageNum}/${Math.ceil(total / limitNum)} for user ${req.user.id}`);
+
+        res.json({
+            success: true,
+            data: pets,
+            pagination: {
+                page: pageNum,
+                limit: limitNum,
+                total,
+                totalPages: Math.ceil(total / limitNum),
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * @swagger
+ * /api/pets/my-pets/{id}:
+ *   get:
+ *     summary: Get pet details of current logged-in user by ID
+ *     tags: [Pets]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Pet details owned by current user
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Pet does not belong to user
+ *       404:
+ *         description: Pet not found
+ */
+router.get('/my-pets/:id', authMiddleware, async (req, res, next) => {
+    try {
+        const petId = req.params.id;
+
+        console.log(`📋 GET /pets/my-pets/${petId} - User: ${req.user.id}`);
+
+        const pet = await prisma.pet.findUnique({
+            where: { id: petId },
+            select: {
+                id: true,
+                name: true,
+                species: true,
+                breed: true,
+                gender: true,
+                birth_date: true,
+                weight: true,
+                image_url: true,
+                ownerId: true,
+                owner: {
+                    select: {
+                        id: true,
+                        username: true,
+                        full_name: true,
+                        email: true,
+                        phone: true,
+                    },
+                },
+                appointments: {
+                    select: {
+                        id: true,
+                        appointment_date: true,
+                        status: true,
+                        reason: true,
+                    },
+                },
+                medicalRecords: {
+                    select: {
+                        id: true,
+                        visit_date: true,
+                        diagnosis: true,
+                        treatment: true,
+                    },
+                },
+                createdAt: true,
+                updatedAt: true,
+            },
+        });
+
+        if (!pet) {
+            console.log(`❌ Pet ${petId} not found`);
+            return res.status(404).json({ success: false, error: 'Pet not found' });
+        }
+
+        // Check if pet belongs to current user
+        if (pet.ownerId !== req.user.id) {
+            console.log(`❌ Access denied - Pet ${petId} belongs to user ${pet.ownerId}, not ${req.user.id}`);
+            return res.status(403).json({ success: false, error: 'This pet does not belong to you' });
+        }
+
+        console.log(`✅ Retrieved pet ${petId} for user ${req.user.id}`);
+
+        res.json({ success: true, data: pet });
     } catch (error) {
         next(error);
     }

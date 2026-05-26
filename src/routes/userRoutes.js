@@ -10,7 +10,7 @@ const router = express.Router();
  * @swagger
  * /api/users:
  *   get:
- *     summary: Get all users (Admin only)
+ *     summary: Get all users - any authenticated user can query, especially for doctors
  *     tags: [Users]
  *     security:
  *       - BearerAuth: []
@@ -32,7 +32,7 @@ const router = express.Router();
  *       200:
  *         description: List of users
  */
-router.get('/', authMiddleware, roleMiddleware(['ADMIN']), async (req, res, next) => {
+router.get('/', authMiddleware, async (req, res, next) => {
     try {
         const { role, search, page = 1, limit = 10 } = req.query;
 

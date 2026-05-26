@@ -219,4 +219,45 @@ router.get('/me', authMiddleware, async (req, res, next) => {
     }
 });
 
+/**
+ * @swagger
+ * /api/auth/check-username:
+ *   get:
+ *     summary: Check if username already exists
+ *     tags: [Auth]
+ *     parameters:
+ *       - in: query
+ *         name: username
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Username to check
+ *     responses:
+ *       200:
+ *         description: Username availability check result
+ *       400:
+ *         description: Username parameter missing
+ */
+router.get('/check-username', async (req, res, next) => {
+    try {
+        const { username } = req.query;
+
+        if (!username || username.trim() === '') {
+            return res.status(400).json({ success: false, error: 'Username parameter is required' });
+        }
+
+        const existingUser = await prisma.user.findUnique({
+            where: { username: username.trim() },
+        });
+
+        res.json({
+            success: true,
+            available: !existingUser,
+            message: existingUser ? 'Username already exists' : 'Username is available',
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
 module.exports = router;

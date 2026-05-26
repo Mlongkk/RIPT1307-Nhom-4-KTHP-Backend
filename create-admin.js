@@ -39,24 +39,6 @@ async function createAdmin() {
         console.log(`🔑 Password: admin123`);
         console.log(`👤 ID: ${admin.id}`);
 
-        // Create clinic info
-        const clinic = await prisma.clinicInfo.findFirst();
-        if (!clinic) {
-            await prisma.clinicInfo.create({
-                data: {
-                    name: 'Pet Hospital ABC',
-                    email: 'info@pethosp.com',
-                    phone: '0123456789',
-                    address: '123 Main Street',
-                    city: 'Ho Chi Minh City',
-                    country: 'Vietnam',
-                    opening_hour: '08:00',
-                    closing_hour: '18:00',
-                },
-            });
-            console.log(`✅ Clinic info created`);
-        }
-
         process.exit(0);
     } catch (error) {
         console.error('❌ Error creating admin:', error.message);

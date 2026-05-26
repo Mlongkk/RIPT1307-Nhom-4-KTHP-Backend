@@ -12,7 +12,6 @@ const appointmentRoutes = require('./routes/appointmentRoutes');
 const medicalRecordRoutes = require('./routes/medicalRecordRoutes');
 const statisticsRoutes = require('./routes/statisticsRoutes');
 const userRoutes = require('./routes/userRoutes');
-const clinicInfoRoutes = require('./routes/clinicInfoRoutes');
 
 dotenv.config();
 
@@ -49,7 +48,6 @@ app.use('/api/pets', petRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/medical-records', medicalRecordRoutes);
 app.use('/api/statistics', statisticsRoutes);
-app.use('/api/clinic', clinicInfoRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
