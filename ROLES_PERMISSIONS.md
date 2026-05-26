@@ -22,6 +22,7 @@ Có quyền truy cập và quản lý toàn bộ hệ thống.
 | **Pets** | ✅ | ✅ (All) | ✅ | ✅ | Quản lý tất cả thú cưng |
 | **Appointments** | ✅ | ✅ (All) | ✅ | ✅ | Quản lý lịch hẹn |
 | **Medical Records** | ✅ | ✅ (All) | ✅ | ✅ | Xem & quản lý tất cả hồ sơ y tế |
+| **Clinic Info** | ✅ | ✅ | ✅ | ✅ | Quản lý thông tin phòng khám |
 | **Statistics** | ❌ | ✅ | ❌ | ❌ | Xem thống kê |
 
 #### Endpoints (Admin Only):
@@ -31,6 +32,9 @@ POST   /api/users                              - Tạo user mới
 GET    /api/users/{id}                         - Xem chi tiết user
 PUT    /api/users/{id}                         - Cập nhật thông tin user
 DELETE /api/users/{id}                         - Xóa user
+
+GET    /api/clinic/info                        - Xem thông tin phòng khám
+PUT    /api/clinic/info                        - Cập nhật thông tin phòng khám
 ```
 
 ---
@@ -49,6 +53,7 @@ Quản lý các appointments và hồ sơ y tế của bệnh nhân (thú cưng)
 | **Pets** | ❌ | ✅ (All) | ❌ | ❌ | Chỉ xem thông tin |
 | **Appointments** | ✅ | ✅ (All) | ✅ | ❌ | Tạo & cập nhật appointments |
 | **Medical Records** | ✅ | ✅ (All) | ✅ | ❌ | Tạo & cập nhật hồ sơ y tế |
+| **Clinic Info** | ❌ | ✅ | ❌ | ❌ | Chỉ xem thông tin |
 | **Statistics** | ❌ | ✅ | ❌ | ❌ | Xem thống kê công việc của mình |
 
 #### Endpoints (Doctor Only):
@@ -82,6 +87,7 @@ Quản lý thông tin cá nhân, thú cưng, và đặt lịch hẹn khám bện
 | **Pets** | ✅ | ✅ (Own) | ✅ (Own) | ✅ (Own) | Quản lý thú cưng của mình |
 | **Appointments** | ✅ | ✅ (Own) | ✅ (Own) | ✅ (Own) | Đặt & quản lý lịch hẹn của mình |
 | **Medical Records** | ❌ | ✅ (Own Pets) | ❌ | ❌ | Xem hồ sơ y tế thú cưng của mình |
+| **Clinic Info** | ❌ | ✅ | ❌ | ❌ | Chỉ xem thông tin |
 | **Statistics** | ❌ | ❌ | ❌ | ❌ | Không có quyền xem |
 
 #### Endpoints (Customer):
@@ -106,6 +112,8 @@ DELETE /api/appointments/{id}                  - Hủy appointment (own only)
 
 GET    /api/medical-records                    - Xem hồ sơ y tế thú cưng
 GET    /api/medical-records/{id}               - Xem chi tiết hồ sơ y tế (own pets only)
+
+GET    /api/clinic/info                        - Xem thông tin phòng khám
 ```
 
 ---
@@ -115,6 +123,7 @@ GET    /api/medical-records/{id}               - Xem chi tiết hồ sơ y tế 
 ### Xác Thực (Authentication)
 - ✅ Hầu hết endpoints yêu cầu **Bearer Token** (JWT)
 - ✅ Token được cấp sau khi login thành công
+- ❌ Một số endpoints public không yêu cầu token (GET /api/pets, GET /api/clinic/info, v.v.)
 
 ### Phân Quyền (Authorization)
 - **ADMIN**: Có quyền truy cập toàn bộ
