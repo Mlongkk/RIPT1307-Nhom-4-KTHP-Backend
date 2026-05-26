@@ -21,7 +21,7 @@ const PORT = process.env.PORT || 4000;
 // ============ CORS Configuration ============
 const allowedOrigins = process.env.FRONTEND_URL
     ? process.env.FRONTEND_URL.split(',')
-    : ['http://localhost:3000', 'http://localhost:4000', 'http://127.0.0.1:3000'];
+    : ['http://localhost:3000', 'http://localhost:4000', 'http://127.0.0.1:3000', 'https://quan-ly-benh-vien-thu-y-ab.netlify.app'];
 
 const corsOptions = {
     origin: allowedOrigins,
