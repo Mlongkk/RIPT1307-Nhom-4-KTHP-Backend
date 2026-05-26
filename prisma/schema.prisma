@@ -22,6 +22,7 @@ model User {
   appointmentsAsDoctor   Appointment[]   @relation("doctorAppointments")
   // Quan hệ với MedicalRecords (nếu là DOCTOR)
   medicalRecords        MedicalRecord[]  @relation("doctorRecords")
+  invoices              Invoice[]
   createdAt             DateTime         @default(now())
   updatedAt             DateTime         @updatedAt
 }
@@ -45,6 +46,7 @@ model Pet {
   ownerId        String
   appointments   Appointment[]
   medicalRecords MedicalRecord[]
+  invoices       Invoice[]
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 }
@@ -91,4 +93,34 @@ model MedicalRecord {
   notes     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Invoice {
+  id          String         @id @default(uuid())
+  pet         Pet            @relation(fields: [petId], references: [id], onDelete: Cascade)
+  petId       String
+  owner       User           @relation(fields: [ownerId], references: [id])
+  ownerId     String
+  totalAmount Float
+  status      InvoiceStatus  @default(PENDING)
+  issuedAt    DateTime       @default(now())
+  items       InvoiceItem[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model InvoiceItem {
+  id         String   @id @default(uuid())
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoiceId  String
+  serviceId  String?
+  quantity   Int      @default(1)
+  unitPrice  Float
+  totalPrice Float
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  CANCELLED
 }
